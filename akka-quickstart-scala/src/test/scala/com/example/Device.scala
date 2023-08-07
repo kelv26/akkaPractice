@@ -1,14 +1,7 @@
 package com.example
 
-//#full-device
-import akka.actor.typed.ActorRef
-import akka.actor.typed.Behavior
-import akka.actor.typed.PostStop
-import akka.actor.typed.Signal
-import akka.actor.typed.scaladsl.AbstractBehavior
-import akka.actor.typed.scaladsl.ActorContext
-import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.scaladsl.LoggerOps
+import akka.actor.typed.{ActorRef, Behavior, PostStop, Signal}
+import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors, LoggerOps}
 
 object Device {
   def apply(groupId: String, deviceId: String): Behavior[Command] =
@@ -17,13 +10,13 @@ object Device {
   sealed trait Command
 
   final case class ReadTemperature(requestId: Long, replyTo: ActorRef[RespondTemperature]) extends Command
-  final case class RespondTemperature(requestId: Long, value: Option[Double])
+  final case class RespondTemperature(requestId: Long, deviceId: String, value: Option[Double])
 
-  //#write-protocol
   final case class RecordTemperature(requestId: Long, value: Double, replyTo: ActorRef[TemperatureRecorded])
     extends Command
   final case class TemperatureRecorded(requestId: Long)
-  //#write-protocol
+
+  case object Passivate extends Command
 }
 
 class Device(context: ActorContext[Device.Command], groupId: String, deviceId: String)
@@ -43,8 +36,11 @@ class Device(context: ActorContext[Device.Command], groupId: String, deviceId: S
         this
 
       case ReadTemperature(id, replyTo) =>
-        replyTo ! RespondTemperature(id, lastTemperatureReading)
+        replyTo ! RespondTemperature(id, deviceId, lastTemperatureReading)
         this
+
+      case Passivate =>
+        Behaviors.stopped
     }
   }
 
